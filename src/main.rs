@@ -1,21 +1,12 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Local, Timelike};
-use nannou::{
-    ease::{bounce, cubic},
-    prelude::*,
-};
+use nannou::{ease::bounce, prelude::*};
 
 mod faces;
 
-const WINDOW_SIZE: u32 = 512;
-
 fn main() {
-    nannou::app(model)
-        .update(update)
-        .simple_window(view)
-        .size(WINDOW_SIZE, WINDOW_SIZE)
-        .run()
+    nannou::app(model).update(update).run()
 }
 
 #[derive(Debug, Default)]
@@ -42,6 +33,13 @@ struct Model {
 }
 
 fn model(app: &App) -> Model {
+    app.new_window()
+        .fullscreen_with(Some(Fullscreen::Borderless(None)))
+        .view(view)
+        .key_pressed(key_pressed)
+        .build()
+        .unwrap();
+
     // Load all textures in the assets folder
     println!("Loading textures...");
     let mut textures = HashMap::new();
@@ -67,7 +65,7 @@ fn model(app: &App) -> Model {
     }
 }
 
-fn update(_app: &App, model: &mut Model, _update: Update) {
+fn update(app: &App, model: &mut Model, _update: Update) {
     model.time = Local::now();
 
     let now = chrono::Local::now();
@@ -106,7 +104,8 @@ fn update(_app: &App, model: &mut Model, _update: Update) {
     model.min_hand.update(0.025);
     model.hour_hand.update(0.025);
 
-    model.radius = (WINDOW_SIZE as f32) * 0.4;
+    let win = app.window_rect();
+    model.radius = win.w().min(win.h()) * 0.4;
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
@@ -121,7 +120,13 @@ fn view(app: &App, model: &Model, frame: Frame) {
         .stroke_weight(1.0);
 
     // Can add logic here for selecting different clock faces
-    faces::clocktown::render(app, model, frame);
+    faces::purpcryst::render(app, model, frame);
+}
+
+fn key_pressed(app: &App, _model: &mut Model, key: Key) {
+    if key == Key::Escape {
+        app.quit();
+    }
 }
 
 #[derive(Default, Debug)]
