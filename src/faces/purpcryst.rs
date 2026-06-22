@@ -1,30 +1,56 @@
-use crate::Model;
+use crate::clock_face::ClockFace;
+use crate::clock_hand::ClockHand;
 use nannou::prelude::*;
 
-pub fn render(app: &App, model: &Model, frame: Frame) {
-    let draw = app.draw();
+#[derive(Debug)]
+pub struct PurpcrystFace {
+    hour_hand: ClockHand,
+    min_hand: ClockHand,
+    sec_hand: ClockHand,
+}
 
-    let size = f32::min(app.window_rect().w(), app.window_rect().h());
-    let wh = vec2(size, size);
+impl PurpcrystFace {
+    pub fn new() -> Self {
+        Self {
+            hour_hand: ClockHand::sweeping(),
+            min_hand: ClockHand::sweeping(),
+            sec_hand: ClockHand::springy(),
+        }
+    }
+}
 
-    draw.texture(&model.textures["Clock_PurpcrystBG - Itchigotchi2"])
-        .xy(app.window_rect().xy())
-        .wh(wh);
+impl ClockFace for PurpcrystFace {
+    fn name(&self) -> &str {
+        "Purpcryst"
+    }
 
-    draw.texture(&model.textures["Clock_PurpcrystSecs - Itchigotchi2"])
-        .xy(app.window_rect().xy())
-        .wh(wh)
-        .rotate(-model.sec_hand.current_angle());
+    fn update(&mut self, _app: &App, ctx: &crate::ClockContext) {
+        self.hour_hand.animate_to(ctx.hour_angle, ctx.dt);
+        self.min_hand.animate_to(ctx.min_angle, ctx.dt);
+        self.sec_hand.animate_to(ctx.sec_angle, ctx.dt);
+    }
 
-    draw.texture(&model.textures["Clock_PurpcrystMins - Itchigotchi2"])
-        .xy(app.window_rect().xy())
-        .wh(wh)
-        .rotate(-model.min_hand.current_angle());
+    fn view(&self, app: &App, ctx: &crate::ClockContext, draw: &Draw) {
+        let size = f32::min(app.window_rect().w(), app.window_rect().h());
+        let wh = vec2(size, size);
 
-    draw.texture(&model.textures["Clock_PurpcrystHrs - Itchigotchi2"])
-        .xy(app.window_rect().xy())
-        .wh(wh)
-        .rotate(-model.hour_hand.current_angle());
+        draw.texture(ctx.texture("purpcryst/bg"))
+            .xy(app.window_rect().xy())
+            .wh(wh);
 
-    draw.to_frame(app, &frame).unwrap();
+        draw.texture(ctx.texture("purpcryst/secs"))
+            .xy(app.window_rect().xy())
+            .wh(wh)
+            .rotate(-self.sec_hand.angle());
+
+        draw.texture(ctx.texture("purpcryst/mins"))
+            .xy(app.window_rect().xy())
+            .wh(wh)
+            .rotate(-self.min_hand.angle());
+
+        draw.texture(ctx.texture("purpcryst/hours"))
+            .xy(app.window_rect().xy())
+            .wh(wh)
+            .rotate(-self.hour_hand.angle());
+    }
 }

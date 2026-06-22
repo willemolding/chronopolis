@@ -1,30 +1,56 @@
-use crate::Model;
+use crate::clock_face::ClockFace;
+use crate::clock_hand::ClockHand;
 use nannou::prelude::*;
 
-pub fn render(app: &App, model: &Model, frame: Frame) {
-    let draw = app.draw();
+#[derive(Debug)]
+pub struct BurndialFace {
+    hour_hand: ClockHand,
+    min_hand: ClockHand,
+    sec_hand: ClockHand,
+}
 
-    let size = f32::min(app.window_rect().w(), app.window_rect().h());
-    let wh = vec2(size, size);
+impl BurndialFace {
+    pub fn new() -> Self {
+        Self {
+            hour_hand: ClockHand::sweeping(),
+            min_hand: ClockHand::sweeping(),
+            sec_hand: ClockHand::sweeping(),
+        }
+    }
+}
 
-    draw.texture(&model.textures["Clock_BurndialMins - Itchigotchi2"])
-        .xy(app.window_rect().xy())
-        .wh(wh)
-        .rotate(-model.min_hand.current_angle());
+impl ClockFace for BurndialFace {
+    fn name(&self) -> &str {
+        "Burndial"
+    }
 
-    draw.texture(&model.textures["Clock_BurndialBG - Itchigotchi2"])
-        .xy(app.window_rect().xy())
-        .wh(wh);
+    fn update(&mut self, _app: &App, ctx: &crate::ClockContext) {
+        self.hour_hand.animate_to(ctx.hour_angle, ctx.dt);
+        self.min_hand.animate_to(ctx.min_angle, ctx.dt);
+        self.sec_hand.animate_to(ctx.sec_angle, ctx.dt);
+    }
 
-    draw.texture(&model.textures["Clock_BurndialSecs - Itchigotchi2"])
-        .xy(app.window_rect().xy())
-        .wh(wh)
-        .rotate(-model.sec_hand.current_angle());
+    fn view(&self, app: &App, ctx: &crate::ClockContext, draw: &Draw) {
+        let size = f32::min(app.window_rect().w(), app.window_rect().h());
+        let wh = vec2(size, size);
 
-    draw.texture(&model.textures["Clock_BurndialHrs - Itchigotchi2"])
-        .xy(app.window_rect().xy())
-        .wh(wh)
-        .rotate(-model.hour_hand.current_angle());
+        draw.texture(ctx.texture("burndial/mins"))
+            .xy(app.window_rect().xy())
+            .wh(wh)
+            .rotate(-self.min_hand.angle());
 
-    draw.to_frame(app, &frame).unwrap();
+        draw.texture(ctx.texture("burndial/bg"))
+            .xy(app.window_rect().xy())
+            .wh(wh);
+
+        draw.texture(ctx.texture("burndial/secs"))
+            .xy(app.window_rect().xy())
+            .wh(wh)
+            .rotate(-self.sec_hand.angle());
+
+        draw.texture(ctx.texture("burndial/hours"))
+            .xy(app.window_rect().xy())
+            .wh(wh)
+            .rotate(-self.hour_hand.angle());
+    }
 }

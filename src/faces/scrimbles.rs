@@ -1,30 +1,56 @@
-use crate::Model;
+use crate::clock_face::ClockFace;
+use crate::clock_hand::ClockHand;
 use nannou::prelude::*;
 
-pub fn render(app: &App, model: &Model, frame: Frame) {
-    let draw = app.draw();
+#[derive(Debug)]
+pub struct ScrimblesFace {
+    hour_hand: ClockHand,
+    min_hand: ClockHand,
+    sec_hand: ClockHand,
+}
 
-    let size = f32::min(app.window_rect().w(), app.window_rect().h());
-    let wh = vec2(size, size);
+impl ScrimblesFace {
+    pub fn new() -> Self {
+        Self {
+            hour_hand: ClockHand::smooth(),
+            min_hand: ClockHand::smooth(),
+            sec_hand: ClockHand::bouncy(),
+        }
+    }
+}
 
-    draw.texture(&model.textures["scrimbles-background"])
-        .xy(app.window_rect().xy())
-        .wh(wh);
+impl ClockFace for ScrimblesFace {
+    fn name(&self) -> &str {
+        "Scrimbles"
+    }
 
-    draw.texture(&model.textures["scrimbles-hour"])
-        .xy(app.window_rect().xy())
-        .wh(wh)
-        .rotate(-model.hour_hand.current_angle());
+    fn update(&mut self, _app: &App, ctx: &crate::ClockContext) {
+        self.hour_hand.animate_to(ctx.hour_angle, ctx.dt);
+        self.min_hand.animate_to(ctx.min_angle, ctx.dt);
+        self.sec_hand.animate_to(ctx.sec_angle, ctx.dt);
+    }
 
-    draw.texture(&model.textures["scrimbles-minute"])
-        .xy(app.window_rect().xy())
-        .wh(wh)
-        .rotate(-model.min_hand.current_angle());
+    fn view(&self, app: &App, ctx: &crate::ClockContext, draw: &Draw) {
+        let size = f32::min(app.window_rect().w(), app.window_rect().h());
+        let wh = vec2(size, size);
 
-    draw.texture(&model.textures["scrimbles-second"])
-        .xy(app.window_rect().xy())
-        .wh(wh)
-        .rotate(-model.sec_hand.current_angle());
+        draw.texture(ctx.texture("scrimbles/bg"))
+            .xy(app.window_rect().xy())
+            .wh(wh);
 
-    draw.to_frame(app, &frame).unwrap();
+        draw.texture(ctx.texture("scrimbles/hours"))
+            .xy(app.window_rect().xy())
+            .wh(wh)
+            .rotate(-self.hour_hand.angle());
+
+        draw.texture(ctx.texture("scrimbles/mins"))
+            .xy(app.window_rect().xy())
+            .wh(wh)
+            .rotate(-self.min_hand.angle());
+
+        draw.texture(ctx.texture("scrimbles/secs"))
+            .xy(app.window_rect().xy())
+            .wh(wh)
+            .rotate(-self.sec_hand.angle());
+    }
 }
