@@ -1,3 +1,4 @@
+use crate::clock_context::ClockContext;
 use crate::clock_face::ClockFace;
 use crate::clock_hand::ClockHand;
 use nannou::prelude::*;
@@ -24,13 +25,13 @@ impl ClockFace for PurpcrystFace {
         "Purpcryst"
     }
 
-    fn update(&mut self, _app: &App, ctx: &crate::ClockContext) {
+    fn update(&mut self, _app: &App, ctx: &ClockContext) {
         self.hour_hand.animate_to(ctx.hour_angle, ctx.dt);
         self.min_hand.animate_to(ctx.min_angle, ctx.dt);
         self.sec_hand.animate_to(ctx.sec_angle, ctx.dt);
     }
 
-    fn view(&self, app: &App, ctx: &crate::ClockContext, draw: &Draw) {
+    fn view(&self, app: &App, ctx: &ClockContext, draw: &Draw) {
         let size = f32::min(app.window_rect().w(), app.window_rect().h());
         let wh = vec2(size, size);
 
