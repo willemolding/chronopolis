@@ -44,9 +44,11 @@ fn model(app: &App) -> Model {
 
 fn update(app: &App, model: &mut Model, _u: Update) {
     update_context(app, &mut model.ctx); // time, angles, radius
-    let face = &mut model.faces[model.current];
-    app.main_window().set_title(face.name());
-    face.update(app, &model.ctx);
+    app.main_window()
+        .set_title(model.faces[model.current].name());
+    for face in &mut model.faces {
+        face.update(app, &model.ctx);
+    }
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
