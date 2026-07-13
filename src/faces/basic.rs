@@ -38,23 +38,30 @@ impl ClockFace for BasicFace {
         let size = f32::min(app.window_rect().w(), app.window_rect().h());
         let wh = vec2(size, size);
 
-        draw.texture(ctx.texture(&format!("{}/bg", self.path_prefix)))
-            .xy(app.window_rect().xy())
-            .wh(wh);
-
-        draw.texture(ctx.texture(&format!("{}/hours", self.path_prefix)))
-            .xy(app.window_rect().xy())
-            .wh(wh)
-            .rotate(-self.hour_hand.angle());
-
-        draw.texture(ctx.texture(&format!("{}/mins", self.path_prefix)))
-            .xy(app.window_rect().xy())
-            .wh(wh)
-            .rotate(-self.min_hand.angle());
-
-        draw.texture(ctx.texture(&format!("{}/secs", self.path_prefix)))
-            .xy(app.window_rect().xy())
-            .wh(wh)
-            .rotate(-self.sec_hand.angle());
+        if let (Some(bg), Some(hours), Some(mins), Some(secs)) = (
+            ctx.texture(&format!("{}/bg", self.path_prefix)),
+            ctx.texture(&format!("{}/hours", self.path_prefix)),
+            ctx.texture(&format!("{}/mins", self.path_prefix)),
+            ctx.texture(&format!("{}/secs", self.path_prefix)),
+        ) {
+            draw.texture(bg).xy(app.window_rect().xy()).wh(wh);
+            draw.texture(hours)
+                .xy(app.window_rect().xy())
+                .wh(wh)
+                .rotate(-self.hour_hand.angle());
+            draw.texture(mins)
+                .xy(app.window_rect().xy())
+                .wh(wh)
+                .rotate(-self.min_hand.angle());
+            draw.texture(secs)
+                .xy(app.window_rect().xy())
+                .wh(wh)
+                .rotate(-self.sec_hand.angle());
+        } else {
+            draw.text("Missing textures")
+                .xy(app.window_rect().xy())
+                .color(RED)
+                .font_size(48);
+        }
     }
 }

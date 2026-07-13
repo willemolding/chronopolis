@@ -20,10 +20,8 @@ pub struct ClockContext {
 }
 
 impl ClockContext {
-    pub fn texture(&self, name: &str) -> &wgpu::Texture {
-        self.textures
-            .get(name)
-            .unwrap_or_else(|| panic!("no texture `{name}` in assets/"))
+    pub fn texture(&self, name: &str) -> Option<&wgpu::Texture> {
+        self.textures.get(name)
     }
 }
 

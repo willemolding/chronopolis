@@ -31,19 +31,30 @@ impl ClockFace for ClocktownFace {
         let size = f32::min(app.window_rect().w(), app.window_rect().h());
         let wh = vec2(size, size);
 
-        draw.texture(ctx.texture("clocktown/secs"))
-            .xy(app.window_rect().xy())
-            .wh(wh)
-            .rotate(-self.sec_hand.angle());
+        if let (Some(secs), Some(mins), Some(sun)) = (
+            ctx.texture("clocktown/secs"),
+            ctx.texture("clocktown/mins"),
+            ctx.texture("clocktown/sun"),
+        ) {
+            draw.texture(secs)
+                .xy(app.window_rect().xy())
+                .wh(wh)
+                .rotate(-self.sec_hand.angle());
 
-        draw.texture(ctx.texture("clocktown/mins"))
-            .xy(app.window_rect().xy())
-            .wh(wh)
-            .rotate(-self.min_hand.angle());
+            draw.texture(mins)
+                .xy(app.window_rect().xy())
+                .wh(wh)
+                .rotate(-self.min_hand.angle());
 
-        draw.texture(ctx.texture("clocktown/sun"))
-            .xy(app.window_rect().xy())
-            .wh(wh)
-            .rotate(-self.min_hand.angle());
+            draw.texture(sun)
+                .xy(app.window_rect().xy())
+                .wh(wh)
+                .rotate(-self.min_hand.angle());
+        } else {
+            draw.text("Missing textures")
+                .xy(app.window_rect().xy())
+                .color(RED)
+                .font_size(48);
+        }
     }
 }
