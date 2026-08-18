@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# The X client side of the installation: a window manager and the clock.
+
+# macroquad asks for fullscreen by sending an EWMH _NET_WM_STATE_FULLSCREEN
+# client message (miniquad's set_fullscreen, src/native/linux_x11.rs). Nothing
+# honours that message without a window manager running, so without matchbox
+# the clock draws in a 1024x1024 corner of the screen instead of filling it.
+matchbox-window-manager -use_titlebar no -use_cursor no &
+
+# textures.rs::assets_path() checks $CWD/assets before anything else, so this
+# cd is what makes the artwork resolve. No path is baked into the binary.
+cd /usr/share/chronopolis
+
+exec /usr/bin/chronopolis

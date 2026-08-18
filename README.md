@@ -24,6 +24,18 @@ or in release mode for speed
 cargo run -r
 ```
 
+## Running it on the tower
+
+[firmware/](./firmware/) builds a bootable SD card image for a Raspberry Pi Zero W that powers on straight into the clock — no desktop, no login, no operator. It is a [Buildroot](https://buildroot.org) br2-external tree plus a pinned build container, so all you need on your machine is Docker:
+
+```shell
+make -C firmware config    # build the container and the Buildroot config
+make -C firmware image     # ~1-3h the first time; incremental after that
+```
+
+The image lands at `firmware/output/images/sdcard.img`. See
+[firmware/README.md](./firmware/README.md) for flashing, tuning and how to get a serial console into a running installation.
+
 ## Adding a new clockface
 
 Look in the [faces](./src/faces/) directory for examples. You want to add a new file that exports a struct that implements the `ClockFace` trait

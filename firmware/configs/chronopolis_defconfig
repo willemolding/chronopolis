@@ -1,0 +1,116 @@
+# Chronopolis appliance for the Raspberry Pi Zero W.
+#
+# Buildroot's own raspberrypi0w_defconfig, with the toolchain swapped for one
+# that builds on any host architecture, plus a GL + X11 stack (which macroquad
+# requires), the chronopolis package and its boot glue, and a read-only rootfs
+# large enough for the artwork.
+#
+# Maintained by hand. `make savedefconfig` dumps a normalised copy to
+# output/defconfig to diff against; it deliberately does not overwrite this
+# file, because normalising would strip every comment below.
+
+# --- Architecture and toolchain -----------------------------------------
+# ARM1176JZF-S is ARMv6 + VFPv2. With hard float that maps to the Rust target
+# arm-unknown-linux-gnueabihf, which has a prebuilt std.
+BR2_arm=y
+BR2_arm1176jzf_s=y
+BR2_ARM_EABIHF=y
+BR2_ARM_FPU_VFPV2=y
+
+# Buildroot's own toolchain, built from source, rather than the prebuilt Bootlin
+# one that raspberrypi0w_defconfig uses.
+#
+# Bootlin's toolchains are `depends on BR2_HOSTARCH = "x86_64"`. On an arm64
+# host — an Apple Silicon Mac, say — that symbol does not exist, and `make
+# defconfig` drops the selection *silently*, falling back to a custom external
+# toolchain with an empty path and uClibc. Building gcc costs about half an hour
+# once; in exchange this defconfig produces the same image on any host
+# architecture, and needs no emulation on arm64.
+BR2_TOOLCHAIN_BUILDROOT_GLIBC=y
+# mesa3d needs a C++ toolchain.
+BR2_TOOLCHAIN_BUILDROOT_CXX=y
+# Headers from the kernel we are building. That is a custom tarball, so the
+# series has to be stated separately — the pinned rpi commit is Linux 6.12.61.
+BR2_KERNEL_HEADERS_AS_KERNEL=y
+BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_6_12=y
+
+BR2_GLOBAL_PATCH_DIR="board/raspberrypi/patches"
+BR2_DOWNLOAD_FORCE_CHECK_HASHES=y
+
+# --- Kernel -------------------------------------------------------------
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_CUSTOM_TARBALL=y
+BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION="$(call github,raspberrypi,linux,21b410140c47ffab5668399f6f143c7d7b935c8b)/linux-21b410140c47ffab5668399f6f143c7d7b935c8b.tar.gz"
+BR2_LINUX_KERNEL_DEFCONFIG="bcmrpi"
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_CHRONOPOLIS_PATH)/board/chronopolis/linux.fragment"
+BR2_LINUX_KERNEL_DTS_SUPPORT=y
+BR2_LINUX_KERNEL_INTREE_DTS_NAME="broadcom/bcm2708-rpi-zero-w"
+BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
+
+# --- Firmware and boot files --------------------------------------------
+BR2_PACKAGE_RPI_FIRMWARE=y
+BR2_PACKAGE_RPI_FIRMWARE_BOOTCODE_BIN=y
+BR2_PACKAGE_RPI_FIRMWARE_VARIANT_PI=y
+BR2_PACKAGE_RPI_FIRMWARE_CONFIG_FILE="$(BR2_EXTERNAL_CHRONOPOLIS_PATH)/board/chronopolis/config.txt"
+BR2_PACKAGE_RPI_FIRMWARE_CMDLINE_FILE="$(BR2_EXTERNAL_CHRONOPOLIS_PATH)/board/chronopolis/cmdline.txt"
+
+# --- System -------------------------------------------------------------
+BR2_TARGET_GENERIC_HOSTNAME="chronopolis"
+BR2_TARGET_GENERIC_ISSUE="Chronopolis"
+# Read-only root. The installation is unplugged rather than shut down, and a
+# clock that cannot corrupt its own filesystem is a clock that keeps working.
+# BR2_TARGET_GENERIC_REMOUNT_ROOTFS_RW is not set
+
+# eudev rather than static /dev, so the X server finds a USB keyboard when one
+# is plugged in — that is how you switch clock faces with the arrow keys.
+BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
+
+BR2_PACKAGE_BUSYBOX_SHOW_OTHERS=y
+BR2_PACKAGE_XZ=y
+BR2_PACKAGE_KMOD=y
+BR2_PACKAGE_KMOD_TOOLS=y
+
+# post-image.sh is upstream's, reused as-is. post-build.sh is ours: upstream's
+# puts a getty on tty1, and tty1 is where X runs.
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_CHRONOPOLIS_PATH)/board/chronopolis/rootfs_overlay"
+BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_CHRONOPOLIS_PATH)/board/chronopolis/post-build.sh"
+BR2_ROOTFS_POST_IMAGE_SCRIPT="board/raspberrypi/post-image.sh"
+
+# --- Graphics -----------------------------------------------------------
+# The accelerated path is the only viable one: llvmpipe on a 1GHz ARM1176
+# renders this at low single digit frames per second.
+BR2_PACKAGE_MESA3D=y
+BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_VC4=y
+BR2_PACKAGE_MESA3D_OPENGL_GLX=y
+BR2_PACKAGE_MESA3D_OPENGL_EGL=y
+BR2_PACKAGE_MESA3D_OPENGL_ES=y
+
+# miniquad's only stable Linux backend is X11 (LinuxBackend::X11Only is its
+# default and the Wayland backend is documented as unstable), so an X server is
+# not optional here.
+BR2_PACKAGE_XORG7=y
+BR2_PACKAGE_XSERVER_XORG_SERVER=y
+BR2_PACKAGE_XSERVER_XORG_SERVER_MODULAR=y
+BR2_PACKAGE_XDRIVER_XF86_INPUT_LIBINPUT=y
+BR2_PACKAGE_XAPP_XINIT=y
+BR2_PACKAGE_XAPP_XKBCOMP=y
+
+# ~200KB of window manager, present for exactly one reason: to honour the
+# _NET_WM_STATE_FULLSCREEN message macroquad sends at startup. Without a WM
+# nothing acts on it and the clock renders in a 1024x1024 corner.
+BR2_PACKAGE_MATCHBOX=y
+
+# --- The application ----------------------------------------------------
+BR2_PACKAGE_CHRONOPOLIS=y
+
+# --- Images -------------------------------------------------------------
+BR2_TARGET_ROOTFS_EXT2=y
+BR2_TARGET_ROOTFS_EXT2_4=y
+# Upstream's 120M does not hold Mesa, X and the artwork.
+BR2_TARGET_ROOTFS_EXT2_SIZE="512M"
+# BR2_TARGET_ROOTFS_TAR is not set
+
+BR2_PACKAGE_HOST_DOSFSTOOLS=y
+BR2_PACKAGE_HOST_GENIMAGE=y
+BR2_PACKAGE_HOST_KMOD_XZ=y
+BR2_PACKAGE_HOST_MTOOLS=y

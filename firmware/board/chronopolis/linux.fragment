@@ -1,0 +1,18 @@
+# Force the vc4 KMS stack built-in rather than modular.
+#
+# bcmrpi_defconfig builds these as modules, which then have to be loaded in the
+# right order before X starts. Built-in, the DRM device exists by the time
+# userspace runs and there is no boot-order race to lose.
+CONFIG_DRM=y
+CONFIG_DRM_FBDEV_EMULATION=y
+CONFIG_DRM_VC4=y
+CONFIG_DRM_V3D=y
+
+# The pool the decoded clock face textures are allocated from. Must be at least
+# as large as the cma= argument in config.txt, which is what actually sizes it.
+CONFIG_CMA=y
+CONFIG_DMA_CMA=y
+CONFIG_CMA_SIZE_MBYTES=192
+
+# Input, for the arrow keys that switch between clock faces.
+CONFIG_INPUT_EVDEV=y

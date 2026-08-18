@@ -1,0 +1,24 @@
+config BR2_PACKAGE_CHRONOPOLIS
+	bool "chronopolis"
+	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	depends on BR2_PACKAGE_XORG7
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_HOST_RUSTC
+	# miniquad dlopen()s all of these at runtime rather than linking
+	# against them, so nothing here is a build dependency — they just
+	# have to be present on the target or the app exits at startup.
+	select BR2_PACKAGE_XLIB_LIBX11
+	select BR2_PACKAGE_XLIB_LIBXI
+	select BR2_PACKAGE_LIBXKBCOMMON
+	help
+	  Chronopolis clock tower art installation.
+
+	  Which GL implementation provides libGL/libEGL is a board
+	  decision, so it is left to the defconfig rather than selected
+	  here. On the Pi Zero W that is mesa3d with the gallium vc4
+	  driver.
+
+	  https://github.com/willemolding/chronopolis
+
+comment "chronopolis needs a toolchain w/ threads, and Rust support for the target"
+	depends on !BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS || !BR2_TOOLCHAIN_HAS_THREADS

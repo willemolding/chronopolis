@@ -1,0 +1,42 @@
+# Raspberry Pi firmware configuration for the Chronopolis appliance.
+#
+# Derived from Buildroot's board/raspberrypi/config_0w.txt. See
+# https://www.raspberrypi.com/documentation/computers/config_txt.html
+
+start_file=start.elf
+fixup_file=fixup.dat
+
+kernel=zImage
+
+# The open vc4 KMS driver, which is what gives Mesa a GLES2/GL implementation
+# on the VideoCore IV. Without it there is no hardware GL at all and the clock
+# falls back to software rendering at a few frames per second.
+#
+# cma= is the pool the decoded clock face textures live in. It is the main
+# memory tuning knob on this 512MB board, and trades against
+# CHRONOPOLIS_ASSET_MAX_DIM in package/chronopolis/chronopolis.mk. Raise it if
+# textures fail to allocate; lower it if userspace starts hitting OOM.
+dtoverlay=vc4-kms-v3d,cma-192
+max_framebuffers=1
+
+# KMS allocates from CMA rather than the legacy split, so the firmware needs
+# almost nothing. Upstream's 100MB here would just be taken away from Linux.
+gpu_mem=16
+
+# Assume the display can show its full resolution. If the clock is cropped at
+# the edges, comment this out.
+disable_overscan=1
+
+# It is a clock in a gallery, not a boot demo.
+disable_splash=1
+
+# HDMI mode is left to auto-detect. To pin it for a specific panel, uncomment
+# and adjust — e.g. for a fixed 1024x1024 display:
+#hdmi_group=2
+#hdmi_mode=87
+#hdmi_cvt=1024 1024 60 1 0 0 0
+#hdmi_force_hotplug=1
+
+# Enable UART0 for the serial console on ttyAMA0. This is the only way into the
+# system, since the image has no networking.
+dtoverlay=miniuart-bt
