@@ -7,7 +7,6 @@ mod clock_face;
 mod clock_hand;
 mod draw;
 mod faces;
-mod fps;
 mod prelude;
 mod textures;
 
@@ -74,7 +73,6 @@ async fn main() {
         faces: faces::all(),
         current: 0,
     };
-    let mut fps = fps::FpsReporter::from_env();
 
     loop {
         if is_key_pressed(KeyCode::Escape) {
@@ -83,7 +81,6 @@ async fn main() {
         handle_input(&mut model);
 
         update_context(&mut model.ctx);
-        fps.tick(&model.ctx, model.faces[model.current].name());
 
         // Every face updates, not just the visible one, so switching to a face
         // doesn't make its hands jump from wherever they were left.
