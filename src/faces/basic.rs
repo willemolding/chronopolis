@@ -1,6 +1,4 @@
-use crate::clock_face::ClockFace;
-use crate::clock_hand::{ClockHand, Easing};
-use nannou::prelude::*;
+use crate::prelude::*;
 
 #[derive(Debug)]
 pub struct BasicFace {
@@ -28,15 +26,14 @@ impl ClockFace for BasicFace {
         self.name
     }
 
-    fn update(&mut self, _app: &App, ctx: &crate::ClockContext) {
+    fn update(&mut self, ctx: &ClockContext) {
         self.hour_hand.animate_to(ctx.hour_angle, ctx.dt);
         self.min_hand.animate_to(ctx.min_angle, ctx.dt);
         self.sec_hand.animate_to(ctx.sec_angle, ctx.dt);
     }
 
-    fn view(&self, app: &App, ctx: &crate::ClockContext, draw: &Draw) {
-        let size = f32::min(app.window_rect().w(), app.window_rect().h());
-        let wh = vec2(size, size);
+    fn view(&self, ctx: &ClockContext) {
+        let size = ctx.canvas();
 
         if let (Some(bg), Some(hours), Some(mins), Some(secs)) = (
             ctx.texture(&format!("{}/bg", self.path_prefix)),
@@ -44,24 +41,12 @@ impl ClockFace for BasicFace {
             ctx.texture(&format!("{}/mins", self.path_prefix)),
             ctx.texture(&format!("{}/secs", self.path_prefix)),
         ) {
-            draw.texture(bg).xy(app.window_rect().xy()).wh(wh);
-            draw.texture(hours)
-                .xy(app.window_rect().xy())
-                .wh(wh)
-                .rotate(-self.hour_hand.angle());
-            draw.texture(mins)
-                .xy(app.window_rect().xy())
-                .wh(wh)
-                .rotate(-self.min_hand.angle());
-            draw.texture(secs)
-                .xy(app.window_rect().xy())
-                .wh(wh)
-                .rotate(-self.sec_hand.angle());
+            draw_texture_centred(bg, Vec2::ZERO, size, 0.0);
+            draw_texture_centred(hours, Vec2::ZERO, size, self.hour_hand.angle());
+            draw_texture_centred(mins, Vec2::ZERO, size, self.min_hand.angle());
+            draw_texture_centred(secs, Vec2::ZERO, size, self.sec_hand.angle());
         } else {
-            draw.text("Missing textures")
-                .xy(app.window_rect().xy())
-                .color(RED)
-                .font_size(48);
+            draw_text_centred("Missing textures", Vec2::ZERO, 48, RED);
         }
     }
 }

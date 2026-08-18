@@ -1,5 +1,8 @@
-use nannou::ease;
-use nannou::prelude::*;
+// Presets are offered to face authors whether or not a face in this repo
+// currently picks them.
+#![allow(dead_code)]
+
+use crate::prelude::*;
 
 /// How a hand interpolates toward a new target. All variants finish on target;
 /// `Bounce` and `Elastic` overshoot along the way.
@@ -14,16 +17,47 @@ pub enum Easing {
 }
 
 impl Easing {
+    /// Map linear progress in `0.0..=1.0` onto the eased curve. Every variant
+    /// maps 0 to 0 and 1 to 1.
     fn apply(self, t: f32) -> f32 {
-        let (t, b, c, d) = (t as f64, 0.0, 1.0, 1.0);
-        let v = match self {
+        match self {
             Easing::Instant => 1.0,
             Easing::Linear => t,
-            Easing::Smooth => ease::sine::ease_in_out(t, b, c, d),
-            Easing::Bounce => ease::bounce::ease_out(t, b, c, d),
-            Easing::Elastic => ease::elastic::ease_out(t, b, c, d),
-        };
-        v as f32
+            Easing::Smooth => sine_in_out(t),
+            Easing::Bounce => bounce_out(t),
+            Easing::Elastic => elastic_out(t),
+        }
+    }
+}
+
+fn sine_in_out(t: f32) -> f32 {
+    -((PI * t).cos() - 1.0) / 2.0
+}
+
+fn bounce_out(t: f32) -> f32 {
+    const N: f32 = 7.5625;
+    const D: f32 = 2.75;
+    if t < 1.0 / D {
+        N * t * t
+    } else if t < 2.0 / D {
+        let t = t - 1.5 / D;
+        N * t * t + 0.75
+    } else if t < 2.5 / D {
+        let t = t - 2.25 / D;
+        N * t * t + 0.9375
+    } else {
+        let t = t - 2.625 / D;
+        N * t * t + 0.984375
+    }
+}
+
+fn elastic_out(t: f32) -> f32 {
+    if t <= 0.0 {
+        0.0
+    } else if t >= 1.0 {
+        1.0
+    } else {
+        2f32.powf(-10.0 * t) * ((t * 10.0 - 0.75) * (TAU / 3.0)).sin() + 1.0
     }
 }
 

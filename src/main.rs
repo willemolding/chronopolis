@@ -1,72 +1,90 @@
-use std::collections::HashMap;
-
-use crate::{
-    clock_context::{ClockContext, update_context},
-    clock_face::ClockFace,
-};
-use nannou::prelude::*;
+use crate::clock_context::update_context;
+use crate::draw::centred_camera;
+use crate::prelude::*;
 
 mod clock_context;
 mod clock_face;
 mod clock_hand;
+mod draw;
 mod faces;
+mod prelude;
 mod textures;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct Model {
     ctx: ClockContext,
     faces: Vec<Box<dyn ClockFace>>,
     current: usize,
 }
 
-fn model(app: &App) -> Model {
-    app.new_window()
-        .fullscreen_with(Some(Fullscreen::Borderless(None)))
-        .view(view)
-        .key_pressed(key_pressed)
-        .build()
-        .unwrap();
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Chronopolis".to_owned(),
+        fullscreen: true,
+        high_dpi: true,
+        sample_count: 4,
+        window_width: 1024,
+        window_height: 1024,
+        ..Default::default()
+    }
+}
 
+#[macroquad::main(window_conf)]
+async fn main() {
     println!("Loading textures...");
-    let mut textures = HashMap::new();
-    let root = app.assets_path().unwrap();
-    textures::load_textures(app, &root, &root, &mut textures);
+    let textures = match textures::assets_path() {
+        Some(root) => textures::load_textures(&root).await,
+        None => {
+            eprintln!("No `assets` directory found — faces with artwork will be blank.");
+            Default::default()
+        }
+    };
 
-    Model {
+    let mut model = Model {
         ctx: ClockContext {
             textures,
             ..Default::default()
         },
         faces: faces::all(),
-        ..Default::default()
+        current: 0,
+    };
+
+    loop {
+        if is_key_pressed(KeyCode::Escape) {
+            break;
+        }
+        handle_input(&mut model);
+
+        update_context(&mut model.ctx);
+        // Every face updates, not just the visible one, so switching to a face
+        // doesn't make its hands jump from wherever they were left.
+        for face in &mut model.faces {
+            face.update(&model.ctx);
+        }
+
+        clear_background(BLACK);
+        set_camera(&centred_camera());
+        model.faces[model.current].view(&model.ctx);
+        set_default_camera();
+
+        next_frame().await
     }
 }
 
-fn update(app: &App, model: &mut Model, _u: Update) {
-    update_context(app, &mut model.ctx); // time, angles, radius
-    app.main_window()
-        .set_title(model.faces[model.current].name());
-    for face in &mut model.faces {
-        face.update(app, &model.ctx);
+fn handle_input(model: &mut Model) {
+    let count = model.faces.len();
+    if count == 0 {
+        return;
     }
-}
 
-fn view(app: &App, model: &Model, frame: Frame) {
-    let draw = app.draw();
-    draw.background().color(BLACK);
-    model.faces[model.current].view(app, &model.ctx, &draw);
-    draw.to_frame(app, &frame).unwrap(); // faces can't forget to flush
-}
-
-fn key_pressed(app: &App, model: &mut Model, key: Key) {
-    match key {
-        Key::Right => model.current = (model.current + 1) % model.faces.len(),
-        Key::Left => model.current = (model.current + model.faces.len() - 1) % model.faces.len(),
-        Key::Escape => app.quit(),
-        _ => {}
+    let previous = model.current;
+    if is_key_pressed(KeyCode::Right) {
+        model.current = (model.current + 1) % count;
     }
-}
-
-fn main() {
-    nannou::app(model).update(update).run()
+    if is_key_pressed(KeyCode::Left) {
+        model.current = (model.current + count - 1) % count;
+    }
+    if model.current != previous {
+        println!("Showing: {}", model.faces[model.current].name());
+    }
 }

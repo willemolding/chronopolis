@@ -1,6 +1,4 @@
-use crate::clock_face::ClockFace;
-use crate::clock_hand::ClockHand;
-use nannou::prelude::*;
+use crate::prelude::*;
 
 #[derive(Debug)]
 pub struct AnalogFace {
@@ -24,32 +22,34 @@ impl ClockFace for AnalogFace {
         "Analog"
     }
 
-    fn update(&mut self, _app: &App, ctx: &crate::ClockContext) {
+    fn update(&mut self, ctx: &ClockContext) {
         self.hour_hand.animate_to(ctx.hour_angle, ctx.dt);
         self.min_hand.animate_to(ctx.min_angle, ctx.dt);
         self.sec_hand.animate_to(ctx.sec_angle, ctx.dt);
     }
 
-    fn view(&self, _app: &App, ctx: &crate::ClockContext, draw: &Draw) {
+    fn view(&self, ctx: &ClockContext) {
+        // `draw_circle` is only a 20-gon, which is visibly faceted at this
+        // size, so go round the long way.
+        const SIDES: u8 = 255;
+
         // Clock face
-        draw.ellipse()
-            .x_y(0.0, 0.0)
-            .radius(ctx.radius)
-            .color(rgb(0.15, 0.15, 0.2))
-            .stroke(WHITE)
-            .stroke_weight(2.0);
+        draw_poly(
+            0.0,
+            0.0,
+            SIDES,
+            ctx.radius,
+            0.0,
+            Color::new(0.15, 0.15, 0.2, 1.0),
+        );
+        draw_poly_lines(0.0, 0.0, SIDES, ctx.radius, 0.0, 2.0, WHITE);
 
         // Hour tick marks
         for i in 0..12 {
             let angle = i as f32 / 12.0 * TAU;
-            let (sin, cos) = angle.sin_cos();
-            let inner = ctx.radius * 0.88;
-            let outer = ctx.radius * 0.97;
-            draw.line()
-                .start(pt2(sin * inner, cos * inner))
-                .end(pt2(sin * outer, cos * outer))
-                .weight(2.5)
-                .color(WHITE);
+            let inner = polar(angle, ctx.radius * 0.88);
+            let outer = polar(angle, ctx.radius * 0.97);
+            draw_line(inner.x, inner.y, outer.x, outer.y, 2.5, WHITE);
         }
 
         // Minute tick marks
@@ -58,43 +58,34 @@ impl ClockFace for AnalogFace {
                 continue;
             } // skip hour positions
             let angle = i as f32 / 60.0 * TAU;
-            let (sin, cos) = angle.sin_cos();
-            let inner = ctx.radius * 0.93;
-            let outer = ctx.radius * 0.97;
-            draw.line()
-                .start(pt2(sin * inner, cos * inner))
-                .end(pt2(sin * outer, cos * outer))
-                .weight(1.0)
-                .color(GRAY);
+            let inner = polar(angle, ctx.radius * 0.93);
+            let outer = polar(angle, ctx.radius * 0.97);
+            draw_line(inner.x, inner.y, outer.x, outer.y, 1.0, GRAY);
         }
 
         // Hour hand
-        let (s, c) = self.hour_hand.angle().sin_cos();
-        draw.line()
-            .start(pt2(0.0, 0.0))
-            .end(pt2(s * ctx.radius * 0.55, c * ctx.radius * 0.55))
-            .weight(6.0)
-            .caps_round()
-            .color(WHITE);
+        draw_line_round(
+            Vec2::ZERO,
+            polar(self.hour_hand.angle(), ctx.radius * 0.55),
+            6.0,
+            WHITE,
+        );
 
         // Minute hand
-        let (s, c) = self.min_hand.angle().sin_cos();
-        draw.line()
-            .start(pt2(0.0, 0.0))
-            .end(pt2(s * ctx.radius * 0.78, c * ctx.radius * 0.78))
-            .weight(4.0)
-            .caps_round()
-            .color(WHITE);
+        draw_line_round(
+            Vec2::ZERO,
+            polar(self.min_hand.angle(), ctx.radius * 0.78),
+            4.0,
+            WHITE,
+        );
 
-        // Second hand
-        let (s, c) = self.sec_hand.angle().sin_cos();
-        draw.line()
-            .start(pt2(-s * ctx.radius * 0.15, -c * ctx.radius * 0.15)) // tail
-            .end(pt2(s * ctx.radius * 0.88, c * ctx.radius * 0.88))
-            .weight(1.5)
-            .color(RED);
+        // Second hand, with a tail poking out the back
+        let sec = self.sec_hand.angle();
+        let tail = polar(sec, ctx.radius * -0.15);
+        let tip = polar(sec, ctx.radius * 0.88);
+        draw_line(tail.x, tail.y, tip.x, tip.y, 1.5, RED);
 
         // Centre dot
-        draw.ellipse().x_y(0.0, 0.0).radius(4.0).color(RED);
+        draw_circle(0.0, 0.0, 4.0, RED);
     }
 }

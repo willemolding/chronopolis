@@ -13,5 +13,6 @@ pub fn all() -> Vec<Box<dyn ClockFace>> {
         Box::new(BasicFace::new("Kelp Forest", "kelpforest")),
         Box::new(BasicFace::new("Sisters", "sisters")),
         Box::new(BasicFace::new("Scrimbles", "scrimbles")),
+        Box::new(BasicFace::new("PurpCryst", "purpcryst")),
     ]
 }
