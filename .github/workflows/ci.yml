@@ -8,4 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      # macroquad opens an X11 window and a GL context, so it needs their
+      # headers to link even for a plain `cargo build`.
+      - run: sudo apt-get update && sudo apt-get install -y libx11-dev libxi-dev libgl1-mesa-dev
       - run: cargo build

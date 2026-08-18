@@ -34,10 +34,11 @@ pub trait ClockFace: Debug {
     fn name(&self) -> &str;
 
     /// Per-frame state update. Default no-op for purely stateless faces.
-    fn update(&mut self, _app: &App, _ctx: &ClockContext) {}
+    fn update(&mut self, _ctx: &ClockContext) {}
 
-    /// Draw the face. `draw` is pre-made and flushed for you — just draw.
-    fn view(&self, app: &App, ctx: &ClockContext, draw: &Draw);
+    /// Draw the face with macroquad calls. The origin is the centre of the
+    /// window and `+y` points down, so positive angles turn clockwise.
+    fn view(&self, ctx: &ClockContext);
 }
 ```
 
@@ -54,4 +55,26 @@ pub fn all() -> Vec<Box<dyn ClockFace>> {
 }
 ```
 
-You can check out the [Nannou drawing guide](https://guide.nannou.cc/tutorials/draw/drawing-2d-shapes) for help in drawing your face.
+### Drawing
+
+Start every face with `use crate::prelude::*;`, which pulls in macroquad plus
+the bits of this project you need. Drawing is plain
+[macroquad](https://docs.rs/macroquad/latest/macroquad/) — `draw_circle`,
+`draw_line`, `draw_texture_ex`
+
+Two things are set up for you:
+
+- **The origin is the centre of the window**, one unit per pixel, with `+y`
+  pointing down. That means a positive rotation is clockwise and `ctx.radius` is the radius of the circular canvas you have to
+  play with.
+- **Angles** on `ClockContext` (`hour_angle`, `min_angle`, `sec_angle`) are in
+  radians, measured clockwise from 12 o'clock.
+
+[draw.rs](./src/draw.rs) adds the few helpers macroquad is missing:
+
+### Artwork
+
+Drop images under [assets/](./assets/) and read them back with
+`ctx.texture("yourface/bg")` — the key is the path below `assets/` without the
+file extension. `ctx.canvas()` gives the largest square that fits in the
+window, which is the size full-bleed artwork is drawn at.
