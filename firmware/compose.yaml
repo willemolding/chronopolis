@@ -4,31 +4,48 @@ services:
       context: .
       args:
         BUILDROOT_VERSION: ${BUILDROOT_VERSION:-2026.05.1}
+        # Baked in so the named volumes below inherit this ownership when Docker
+        # first populates them from the image. Saves a chown step at run time.
+        DOCKER_UID: ${DOCKER_UID:-1000}
+        DOCKER_GID: ${DOCKER_GID:-1000}
     image: chronopolis-buildroot:${BUILDROOT_VERSION:-2026.05.1}
 
-    # Buildroot refuses to build as root, and running as you keeps everything
-    # under output/ owned by you rather than needing sudo to delete.
+    # Buildroot refuses to build as root. UID/GID come from .env, which the
+    # Makefile generates, so a bare `docker compose` here behaves identically.
     user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
 
     working_dir: /output
 
     environment:
-      # That UID has no /etc/passwd entry, so HOME has to be somewhere real and
-      # writable. ccache defaults to $HOME/.buildroot-ccache, which puts it on
-      # the persistent volume below without hardcoding a path in the defconfig.
       HOME: /home/br
-      # Downloaded tarballs, and the Cargo registry cache used when vendoring.
       BR2_DL_DIR: /dl
 
     volumes:
-      # Read-only, with no writable holes: Buildroot's setlocalversion guards
-      # `git update-index --refresh` behind `[ -w . ]`, so a writable subdirectory
-      # makes that probe pass and the refresh then fails against a read-only
-      # /src/.git. All or nothing.
+      # Source in, read-only. Buildroot rsyncs from it and must never write back
+      # — and a writable subdirectory would make setlocalversion's `[ -w . ]`
+      # probe pass and then fail against a read-only /src/.git.
       - ..:/src:ro
-      - ./output:/output
-      - ./.cache/dl:/dl
-      - ./.cache/home:/home/br
+
+      # Finished artefacts out. Small and write-once, so a bind mount is fine.
+      - ./artifacts:/artifacts
+
+      # The build tree, downloads and ccache live in VM-native volumes rather
+      # than bind mounts. This is not a preference — Docker Desktop's macOS file
+      # sharing mishandles fchmod() on an open descriptor, leaving the file
+      # permanently un-chmod-able (EPERM) even for its owner. e2fsprogs' `subst`
+      # does exactly that (fchmod + rename), so a bind-mounted build tree cannot
+      # get past host-e2fsprogs. Volumes are ext4 inside the VM and unaffected.
+      - output:/output
+      - dl:/dl
+      - home:/home/br
 
     # No `init: true`: docker-init was the process that oopsed the Docker Desktop
     # VM kernel during a parallel build, and nothing here needs zombie reaping.
+
+volumes:
+  output:
+    name: chronopolis-output
+  dl:
+    name: chronopolis-dl
+  home:
+    name: chronopolis-home

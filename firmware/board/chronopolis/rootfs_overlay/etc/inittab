@@ -5,7 +5,7 @@
 #  - No `mount -o remount,rw /`. The rootfs stays read-only; an installation
 #    that gets unplugged rather than shut down should not be able to corrupt
 #    its own filesystem.
-#  - No getty on tty1. X owns that VT.
+#  - No getty on tty1; it stays the kernel console.
 #
 # Format: <id>:<runlevels>:<action>:<process>
 # runlevels are ignored by BusyBox init.
@@ -25,9 +25,14 @@ null::sysinit:/bin/ln -sf /proc/self/fd/2 /dev/stderr
 # back in a couple of seconds rather than leaving a black screen in a gallery.
 ::respawn:/usr/share/chronopolis/start.sh
 
-# Serial console on the UART pins. With no networking in the image, this is the
-# only way into a running system.
+# Serial console on the UART pins, for when a USB-TTL adapter is to hand.
 ttyAMA0::respawn:/sbin/getty -L ttyAMA0 115200 vt100
+
+# Consoles on tty2 and tty3, reachable with Alt+F2 / Alt+F3 from a USB keyboard
+# on the Pi Zero W's OTG port. This is the way in when there is no serial
+# adapter. Nothing on tty1: X takes vt7, and tty1 keeps the kernel console.
+tty2::respawn:/sbin/getty -L tty2 0 vt100
+tty3::respawn:/sbin/getty -L tty3 0 vt100
 
 ::ctrlaltdel:/sbin/reboot
 ::shutdown:/etc/init.d/rcK

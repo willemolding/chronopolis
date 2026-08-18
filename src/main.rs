@@ -7,6 +7,7 @@ mod clock_face;
 mod clock_hand;
 mod draw;
 mod faces;
+mod fps;
 mod prelude;
 mod textures;
 
@@ -17,14 +18,39 @@ struct Model {
     current: usize,
 }
 
+/// The clock is fill-rate bound on the target hardware, not CPU bound: the Pi
+/// Zero's VideoCore IV shares one ~1.2GB/s LPDDR2 bus with the CPU, and a face
+/// is four full-canvas bilinear-filtered alpha-blended quads. At a 1080-pixel
+/// canvas that is ~55MB of memory traffic per frame, which is the whole budget.
+/// Fill cost scales with the *square* of the canvas edge, so resolution is the
+/// dominant lever — see the tuning section of firmware/README.md.
 fn window_conf() -> Conf {
     Conf {
         window_title: "Chronopolis".to_owned(),
         fullscreen: true,
-        high_dpi: true,
-        sample_count: 4,
+        // Every pixel is expensive on a VideoCore IV (see the fill-rate note
+        // above), and a 2x backing buffer would cost four times the fill for no
+        // visible gain at gallery viewing distance. Render at 1x and let the
+        // firmware's scaler do any upscaling — it is free, we are not.
+        high_dpi: false,
+        sample_count: 1,
         window_width: 1024,
         window_height: 1024,
+        platform: miniquad::conf::Platform {
+            linux_x11_gl: miniquad::conf::LinuxX11Gl::EGLOnly,
+            // miniquad defaults to eglSwapInterval(1) (native/linux_x11.rs),
+            // which quantises the frame rate to 60/n. A frame that misses 60Hz
+            // by a hair therefore displays at 30fps with the GPU idle for half
+            // of every frame, and one that misses 30 drops to 20. Uncapping
+            // hands those partial frames back: the clock runs at whatever the
+            // hardware can actually sustain instead of the next step down.
+            //
+            // The cost is tearing, which on slowly rotating artwork shows up as
+            // a faint horizontal seam. Set this to `Some(1)` if that is more
+            // objectionable than the lower frame rate.
+            swap_interval: Some(0),
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
@@ -48,6 +74,7 @@ async fn main() {
         faces: faces::all(),
         current: 0,
     };
+    let mut fps = fps::FpsReporter::from_env();
 
     loop {
         if is_key_pressed(KeyCode::Escape) {
@@ -56,6 +83,8 @@ async fn main() {
         handle_input(&mut model);
 
         update_context(&mut model.ctx);
+        fps.tick(&model.ctx, model.faces[model.current].name());
+
         // Every face updates, not just the visible one, so switching to a face
         // doesn't make its hands jump from wherever they were left.
         for face in &mut model.faces {

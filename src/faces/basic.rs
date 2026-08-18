@@ -6,7 +6,13 @@ pub struct BasicFace {
     min_hand: ClockHand,
     sec_hand: ClockHand,
     name: &'static str,
-    path_prefix: &'static str,
+    // Resolved once rather than `format!`ed on every frame. Four heap
+    // allocations per frame is not what makes this slow, but the target has no
+    // cycles going spare either.
+    bg_key: String,
+    hours_key: String,
+    mins_key: String,
+    secs_key: String,
 }
 
 impl BasicFace {
@@ -16,7 +22,10 @@ impl BasicFace {
             min_hand: ClockHand::new().easing(Easing::Linear).duration(60.),
             sec_hand: ClockHand::sweeping(),
             name,
-            path_prefix,
+            bg_key: format!("{path_prefix}/bg"),
+            hours_key: format!("{path_prefix}/hours"),
+            mins_key: format!("{path_prefix}/mins"),
+            secs_key: format!("{path_prefix}/secs"),
         }
     }
 }
@@ -36,10 +45,10 @@ impl ClockFace for BasicFace {
         let size = ctx.canvas();
 
         if let (Some(bg), Some(hours), Some(mins), Some(secs)) = (
-            ctx.texture(&format!("{}/bg", self.path_prefix)),
-            ctx.texture(&format!("{}/hours", self.path_prefix)),
-            ctx.texture(&format!("{}/mins", self.path_prefix)),
-            ctx.texture(&format!("{}/secs", self.path_prefix)),
+            ctx.texture(&self.bg_key),
+            ctx.texture(&self.hours_key),
+            ctx.texture(&self.mins_key),
+            ctx.texture(&self.secs_key),
         ) {
             draw_texture_centred(bg, Vec2::ZERO, size, 0.0);
             draw_texture_centred(hours, Vec2::ZERO, size, self.hour_hand.angle());

@@ -8,24 +8,51 @@ fixup_file=fixup.dat
 
 kernel=zImage
 
-# The open vc4 KMS driver, which is what gives Mesa a GLES2/GL implementation
-# on the VideoCore IV. Without it there is no hardware GL at all and the clock
-# falls back to software rendering at a few frames per second.
+# Fake KMS, not full KMS. The kernel picks display modes but the firmware keeps
+# ownership of the video output path.
 #
-# cma= is the pool the decoded clock face textures live in. It is the main
-# memory tuning knob on this 512MB board, and trades against
-# CHRONOPOLIS_ASSET_MAX_DIM in package/chronopolis/chronopolis.mk. Raise it if
-# textures fail to allocate; lower it if userspace starts hitting OOM.
-dtoverlay=vc4-kms-v3d,cma-192
-max_framebuffers=1
+# This is load-bearing and was hard won. With full KMS (vc4-kms-v3d) on this
+# board, everything reports success — the driver binds, /dev/dri/card0 appears,
+# glamor initialises on "VC4 V3D 2.1", X sets the correct mode on the correct
+# output and renders without a single error — and nothing whatsoever reaches the
+# panel. Writing noise straight to /dev/fb0 displays fine, so the fault is
+# specifically that X's output is never scanned out. Disabling glamor, disabling
+# page flips and moving X to its own VT all made no difference. Full KMS is the
+# least-travelled path on BCM2835; fkms is what people actually run X11 on for
+# older Pis, and it works immediately.
+dtoverlay=vc4-fkms-v3d
 
-# KMS allocates from CMA rather than the legacy split, so the firmware needs
-# almost nothing. Upstream's 100MB here would just be taken away from Linux.
-gpu_mem=16
+# The firmware owns the display in fkms mode, so it needs real memory. 16MB (the
+# right answer under full KMS, where CMA does the work) gets you nothing here.
+gpu_mem=128
+
+# Every reference configuration pairs the vc4 overlays with two framebuffers.
+max_framebuffers=2
 
 # Assume the display can show its full resolution. If the clock is cropped at
 # the edges, comment this out.
 disable_overscan=1
+
+# Render resolution, and the single biggest lever on frame rate.
+#
+# The clock is fill-rate bound, not CPU bound: a face is four full-canvas
+# bilinear-filtered alpha-blended quads, and the VideoCore IV shares one
+# ~1.2GB/s LPDDR2 bus with the ARM core. Filling a 1080px canvas four times over
+# is ~55MB of memory traffic per frame, which is roughly the entire budget — so
+# the clock arrives at low double-digit frames per second on a 1080p panel.
+#
+# In fake-KMS mode the firmware owns the display and its hardware scaler
+# upscales this framebuffer to whatever mode HDMI negotiated, for free. Halving
+# both edges therefore quarters the per-frame traffic and costs only sharpness,
+# which a clock face seen from across a room does not miss. (This is an fkms
+# trick specifically; under full KMS these keys do nothing.)
+#
+# Keep the aspect ratio equal to the panel's or the firmware will stretch the
+# image and the clock face will come out elliptical. 960x540 is half of 1080p.
+# Drop to 640x360 if the frame rate still is not there, or delete both lines to
+# render natively.
+framebuffer_width=960
+framebuffer_height=540
 
 # It is a clock in a gallery, not a boot demo.
 disable_splash=1
@@ -37,6 +64,5 @@ disable_splash=1
 #hdmi_cvt=1024 1024 60 1 0 0 0
 #hdmi_force_hotplug=1
 
-# Enable UART0 for the serial console on ttyAMA0. This is the only way into the
-# system, since the image has no networking.
+# Enable UART0 for the serial console on ttyAMA0.
 dtoverlay=miniuart-bt

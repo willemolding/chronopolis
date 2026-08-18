@@ -1,6 +1,6 @@
 # Builds the Raspberry Pi Zero W SD card image.
 #
-#   make image        build firmware/output/images/sdcard.img   (slow, first time)
+#   make image        build firmware/artifacts/sdcard.img   (slow, first time)
 #   make app          rebuild just the Rust app and refresh the image
 #   make menuconfig   tune the Buildroot config interactively
 #   make shell        a shell in the build container
@@ -10,10 +10,7 @@
 
 BUILDROOT_VERSION ?= 2026.05.1
 
-export BUILDROOT_VERSION
-export DOCKER_UID := $(shell id -u)
-export DOCKER_GID := $(shell id -g)
-
+DOCKER  ?= docker
 COMPOSE ?= docker compose
 RUN      = $(COMPOSE) run --rm builder
 
@@ -28,29 +25,38 @@ JOBS ?=
 BR = make -C /opt/buildroot O=/output BR2_EXTERNAL=/src/firmware \
      $(if $(JOBS),BR2_JLEVEL=$(JOBS))
 
-# Bind-mount sources, created here so they end up owned by you rather than by
-# the Docker daemon.
-DIRS = output .cache/dl .cache/home
+# The build tree lives in a named volume, not on the host — see compose.yaml for
+# why it has to. That means `clean` is volume management rather than rm -rf.
+VOLUME_BUILD = chronopolis-output
+VOLUME_CACHE = chronopolis-dl chronopolis-home
 
-.PHONY: help dirs config reconfig check-config image app menuconfig savedefconfig shell clean distclean
+.PHONY: help setup config reconfig check-config image app artifact menuconfig \
+        savedefconfig shell clean distclean
 
 # `\?` is a GNU sed extension, and this Makefile runs on the host, which may be
 # a Mac. Two plain expressions instead.
 help:
 	@sed -n '1,9p' $(firstword $(MAKEFILE_LIST)) | sed -e 's/^# //' -e 's/^#$$//'
 
-dirs:
-	@mkdir -p $(DIRS)
+# docker compose loads .env from this directory automatically, so a bare
+# `docker compose ...` here behaves exactly as going through this Makefile does.
+# That matters: without it the two paths run as different UIDs, and the volumes
+# are owned by whichever got there first.
+setup:
+	@mkdir -p artifacts
+	@printf 'DOCKER_UID=%s\nDOCKER_GID=%s\nBUILDROOT_VERSION=%s\n' \
+		"$$(id -u)" "$$(id -g)" "$(BUILDROOT_VERSION)" > .env
 
-# Buildroot stores the config in output/, so only run defconfig if it is absent.
-# Re-running it would silently discard anything done via `make menuconfig`.
-config: dirs
-	@test -f output/.config || $(RUN) $(BR) chronopolis_defconfig
+# Only run defconfig if there is no config yet. Re-running it would silently
+# discard anything done via `make menuconfig`.
+config: setup
+	@$(RUN) test -f /output/.config >/dev/null 2>&1 \
+		|| $(RUN) $(BR) chronopolis_defconfig
 	@$(MAKE) --no-print-directory check-config
 
 # Start over from configs/chronopolis_defconfig, discarding menuconfig changes.
-reconfig: dirs
-	rm -f output/.config
+reconfig: setup
+	-@$(RUN) rm -f /output/.config >/dev/null 2>&1
 	@$(MAKE) --no-print-directory config
 
 # `make <foo>_defconfig` drops any symbol whose dependencies are not met, and
@@ -67,11 +73,14 @@ REQUIRED_SYMBOLS = \
 	BR2_PACKAGE_MESA3D_GALLIUM_DRIVER_VC4=y \
 	BR2_PACKAGE_MESA3D_OPENGL_GLX=y \
 	BR2_PACKAGE_XSERVER_XORG_SERVER=y \
-	BR2_PACKAGE_MATCHBOX=y
+	BR2_PACKAGE_XLIB_LIBXSHMFENCE=y \
+	BR2_PACKAGE_LIBEPOXY=y \
+	BR2_PACKAGE_MATCHBOX=y \
+	BR2_PACKAGE_DEJAVU=y
 
 check-config:
-	@missing=$$(for s in $(REQUIRED_SYMBOLS); do \
-		grep -qx "$$s" output/.config || echo "    $$s"; done); \
+	@missing=$$($(RUN) sh -c 'for s in $(REQUIRED_SYMBOLS); do \
+		grep -qx "$$s" /output/.config || echo "    $$s"; done' 2>/dev/null); \
 	if [ -n "$$missing" ]; then \
 		printf 'config check: the defconfig degraded, these were dropped:\n%s\n' \
 			"$$missing" >&2; \
@@ -79,15 +88,33 @@ check-config:
 	fi; \
 	echo "config check: ok"
 
+# board/chronopolis/{config,cmdline}.txt are inputs to the rpi-firmware package,
+# and Buildroot does not track them as dependencies. Editing one and running
+# `make image` would otherwise silently ship the previous version — an hour lost
+# on the bench wondering why a boot parameter had no effect. Forcing the
+# reinstall is only a file copy.
 image: config
-	$(RUN) $(BR) all
-	@echo
-	@echo "Image: firmware/output/images/sdcard.img"
+	$(RUN) $(BR) rpi-firmware-reinstall all
+	@$(MAKE) --no-print-directory artifact
 
 # The app is the only thing that changes day to day. This skips straight to it
 # rather than reconsidering the kernel, Mesa and X every time.
+#
+# dirclean, not just -rebuild: Buildroot rsyncs a local package's source once
+# and guards the copy with a stamp that -rebuild does not remove, so editing
+# src/ and running `make image` — or even `make app` — can silently build the
+# previous source. Wiping the build directory is the only reliable way to pick
+# up an edit. It costs a full recompile of the crate; shipping a binary that
+# does not match the source costs an afternoon.
 app: config
-	$(RUN) $(BR) chronopolis-rebuild all
+	$(RUN) $(BR) chronopolis-dirclean chronopolis-rebuild all
+	@$(MAKE) --no-print-directory artifact
+
+# Copy the finished image out of the build volume onto the host.
+artifact:
+	@$(RUN) cp -a /output/images/sdcard.img /artifacts/
+	@echo
+	@echo "Image: firmware/artifacts/sdcard.img"
 
 menuconfig: config
 	$(RUN) $(BR) menuconfig
@@ -97,19 +124,20 @@ menuconfig: config
 # and those comments are the only record of why any of this is set the way it
 # is. Diff against it and port changes over by hand.
 savedefconfig: config
-	$(RUN) $(BR) savedefconfig BR2_DEFCONFIG=/output/defconfig
+	$(RUN) $(BR) savedefconfig BR2_DEFCONFIG=/artifacts/defconfig
 	@echo
-	@echo "Wrote output/defconfig. To fold changes into the committed config:"
-	@echo "    diff -u configs/chronopolis_defconfig output/defconfig"
+	@echo "Wrote artifacts/defconfig. To fold changes into the committed config:"
+	@echo "    diff -u configs/chronopolis_defconfig artifacts/defconfig"
 
-shell: dirs
+shell: setup
 	$(RUN) bash
 
 # Drops the build tree but keeps the download and ccache volumes, so the next
 # build is slow rather than glacial.
 clean:
-	rm -rf output
+	-@$(DOCKER) volume rm -f $(VOLUME_BUILD)
+	rm -rf artifacts
 
 # ...and this drops those too.
 distclean: clean
-	rm -rf .cache
+	-@$(DOCKER) volume rm -f $(VOLUME_CACHE)

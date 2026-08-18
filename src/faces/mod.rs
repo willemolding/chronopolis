@@ -7,8 +7,8 @@ pub mod clocktown;
 
 pub fn all() -> Vec<Box<dyn ClockFace>> {
     vec![
-        Box::new(analog::AnalogFace::new()),
         Box::new(clocktown::ClocktownFace::new()),
+        Box::new(analog::AnalogFace::new()),
         Box::new(BasicFace::new("Burndial", "burndial")),
         Box::new(BasicFace::new("Kelp Forest", "kelpforest")),
         Box::new(BasicFace::new("Sisters", "sisters")),

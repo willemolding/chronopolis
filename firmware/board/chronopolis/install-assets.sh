@@ -27,8 +27,13 @@ else
 	MOGRIFY="mogrify"
 fi
 
-# Rebuilt from scratch, so artwork deleted from the repo also leaves the image
-# rather than lingering from an earlier build.
+if [ ! -d "${SRC}" ]; then
+	echo "install-assets.sh: no such directory: ${SRC}" >&2
+	exit 1
+fi
+
+# Always rebuilt from scratch, so artwork deleted from the repo leaves the image
+# too rather than lingering from an earlier build.
 rm -rf "${DST}"
 mkdir -p "${DST}"
 cp -a "${SRC}/." "${DST}/"

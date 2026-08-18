@@ -34,7 +34,8 @@ BR2_TOOLCHAIN_BUILDROOT_CXX=y
 BR2_KERNEL_HEADERS_AS_KERNEL=y
 BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_6_12=y
 
-BR2_GLOBAL_PATCH_DIR="board/raspberrypi/patches"
+# Upstream's rpi patches, plus ours — see patches/ for what and why.
+BR2_GLOBAL_PATCH_DIR="board/raspberrypi/patches $(BR2_EXTERNAL_CHRONOPOLIS_PATH)/patches"
 BR2_DOWNLOAD_FORCE_CHECK_HASHES=y
 
 # --- Kernel -------------------------------------------------------------
@@ -71,7 +72,8 @@ BR2_PACKAGE_KMOD=y
 BR2_PACKAGE_KMOD_TOOLS=y
 
 # post-image.sh is upstream's, reused as-is. post-build.sh is ours: upstream's
-# puts a getty on tty1, and tty1 is where X runs.
+# adds a getty on tty1, and it also carries the assertions that catch a silently
+# mis-built graphics stack.
 BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_CHRONOPOLIS_PATH)/board/chronopolis/rootfs_overlay"
 BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_CHRONOPOLIS_PATH)/board/chronopolis/post-build.sh"
 BR2_ROOTFS_POST_IMAGE_SCRIPT="board/raspberrypi/post-image.sh"
@@ -95,10 +97,26 @@ BR2_PACKAGE_XDRIVER_XF86_INPUT_LIBINPUT=y
 BR2_PACKAGE_XAPP_XINIT=y
 BR2_PACKAGE_XAPP_XKBCOMP=y
 
+# Not optional, despite looking like an unrelated library. xserver_xorg-server.mk
+# only passes --enable-glamor when libepoxy, libGL and libEGL are all present;
+# otherwise it passes --disable-glamor. Without glamor the modesetting driver has
+# no acceleration path and never creates a DRI3 device, so Mesa's EGL fails with
+# "DRI3 error: Could not get DRI3 device" and miniquad panics on
+# InitializeFailed — a blank screen with a working GPU sitting right behind it.
+BR2_PACKAGE_LIBEPOXY=y
+
 # ~200KB of window manager, present for exactly one reason: to honour the
 # _NET_WM_STATE_FULLSCREEN message macroquad sends at startup. Without a WM
 # nothing acts on it and the clock renders in a 1024x1024 corner.
 BR2_PACKAGE_MATCHBOX=y
+
+# matchbox selects fontconfig but no actual font, and its default theme asks Xft
+# for "Sans bold 16px". With only the bitmap misc/cyrillic fonts in the image
+# that lookup fails, matchbox dies parsing its own theme, and with no window
+# manager left running nothing honours the clock's fullscreen request — a blank
+# screen with everything else working perfectly.
+BR2_PACKAGE_DEJAVU=y
+BR2_PACKAGE_DEJAVU_SANS=y
 
 # --- The application ----------------------------------------------------
 BR2_PACKAGE_CHRONOPOLIS=y

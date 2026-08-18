@@ -6,3 +6,12 @@ edition = "2024"
 [dependencies]
 chrono = "0.4.44"
 macroquad = "0.4.16"
+
+# The target is a 1GHz ARM1176 and the binary is cross-compiled once per image
+# build, so trading build time for run time is free here. Rendering is fill-rate
+# bound rather than CPU bound (see window_conf in src/main.rs), so this is worth
+# single-digit percentages, not multiples — but it costs nothing to take.
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -1,1 +1,1 @@
-root=/dev/mmcblk0p2 rootwait ro console=tty1 console=ttyAMA0,115200 consoleblank=0 vt.global_cursor_default=0 logo.nologo quiet
+root=/dev/mmcblk0p2 rootwait ro console=tty1 console=ttyAMA0,115200 consoleblank=0 vt.global_cursor_default=0

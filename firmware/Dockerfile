@@ -23,6 +23,14 @@ RUN apt-get update \
 RUN git clone --depth 1 --branch "${BUILDROOT_VERSION}" \
         https://github.com/buildroot/buildroot.git /opt/buildroot
 
+# Docker populates an empty named volume from the image's directory at that
+# path, ownership included. Creating these here owned by the invoking user is
+# what makes the volumes writable without a chown step at run time.
+ARG DOCKER_UID=1000
+ARG DOCKER_GID=1000
+RUN mkdir -p /output /dl /home/br /artifacts \
+ && chown "${DOCKER_UID}:${DOCKER_GID}" /output /dl /home/br /artifacts
+
 # Everything is built out of tree into /output, so /opt/buildroot is only ever
 # read. That is what lets the container run as an arbitrary host UID.
 WORKDIR /output

@@ -22,8 +22,15 @@ CHRONOPOLIS_OVERRIDE_SRCDIR_RSYNC_EXCLUSIONS = \
 # Largest edge length any texture is allowed to have on the target. VideoCore IV
 # rejects textures above 2048px, and every image under assets/ is decoded to RGBA
 # and held in memory for the whole run, so this is also the main lever on memory
-# use. Trades against the cma= size in board/chronopolis/config.txt.
-CHRONOPOLIS_ASSET_MAX_DIM = 1024
+# use. Trades against gpu_mem in board/chronopolis/config.txt.
+#
+# Keep this at or just above the canvas edge implied by framebuffer_width /
+# framebuffer_height in board/chronopolis/config.txt. Oversized textures cost
+# twice: they are minified, which on a GPU with a texture cache this small means
+# every bilinear tap is a fresh memory read, and they occupy four times the CMA
+# for each doubling. 512 suits the 960x540 framebuffer that config.txt sets;
+# raise both together if the artwork needs to be sharper.
+CHRONOPOLIS_ASSET_MAX_DIM = 512
 
 # pkg-cargo normally vendors dependencies during the download step, which does
 # not run for a local package — but it still builds with `cargo --offline`. So

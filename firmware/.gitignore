@@ -1,2 +1,2 @@
-output/
-.cache/
+artifacts/
+.env

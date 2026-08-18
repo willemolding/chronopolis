@@ -33,7 +33,7 @@ make -C firmware config    # build the container and the Buildroot config
 make -C firmware image     # ~1-3h the first time; incremental after that
 ```
 
-The image lands at `firmware/output/images/sdcard.img`. See
+The image lands at `firmware/artifacts/sdcard.img`. See
 [firmware/README.md](./firmware/README.md) for flashing, tuning and how to get a serial console into a running installation.
 
 ## Adding a new clockface
