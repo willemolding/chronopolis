@@ -12,4 +12,9 @@ matchbox-window-manager -use_titlebar no -use_cursor no &
 # cd is what makes the artwork resolve. No path is baked into the binary.
 cd /usr/share/chronopolis
 
+# The image has no zoneinfo, so the timezone is a POSIX TZ string, which chrono
+# parses itself. The sign is inverted from the usual convention: AEST-10 is
+# UTC+10. No daylight saving. The RTC and system clock stay in UTC.
+export TZ=AEST-10
+
 exec /usr/bin/chronopolis

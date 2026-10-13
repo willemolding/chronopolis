@@ -247,18 +247,30 @@ dd if=/dev/urandom of=/dev/fb0 bs=1M count=16
 Static on screen means the kernel's scanout path works and the fault is above
 it. Nothing means it is below. That one command halves the search space.
 
-## Known limitation: the time is wrong after a power cut
+## Keeping time: the real-time clock
 
-The Pi Zero W has no real-time clock, and this image has no networking, so there
-is no NTP either. Every boot starts from the epoch. The clock runs correctly; it
-is just offset. Given that the project's own description is "It might tell the
-time, it might not", this may be exactly right.
+The Pi Zero W has no real-time clock of its own, and this image has no
+networking, so there is no NTP either. The image therefore supports a PCF8523
+RTC module (e.g. Adafruit's breakout) on the I²C header: SDA on GPIO 2, SCL on
+GPIO 3, plus 3.3V and ground.
 
-If you would rather it were accurate, the cheap fix is a DS3231 module on the
-I²C header — about four lines, no networking:
+- `dtparam=i2c_arm=on` and `dtoverlay=i2c-rtc,pcf8523` in
+  [`config.txt`](board/chronopolis/config.txt) declare the chip.
+- [`linux.fragment`](board/chronopolis/linux.fragment) builds the I²C and RTC
+  drivers in, with `RTC_HCTOSYS`, so the kernel sets the system time from the
+  RTC before userspace starts.
+- [`inittab`](board/chronopolis/rootfs_overlay/etc/inittab) runs `hwclock -s -u`
+  as a fallback.
 
-- `dtoverlay=i2c-rtc,ds3231` in `board/chronopolis/config.txt`
-- `BR2_PACKAGE_BUSYBOX_SHOW_OTHERS` already gives you `hwclock`; add
-  `hwclock -s` as a `sysinit` line in `board/chronopolis/rootfs_overlay/etc/inittab`
-- enable I²C in `board/chronopolis/linux.fragment`
-  (`CONFIG_I2C_BCM2835=y`, `CONFIG_RTC_DRV_DS1307=y`)
+Nothing ever writes the time back to the RTC. **Set it to UTC before fitting
+it.** With no module fitted, every boot starts from the epoch. The clock still
+runs correctly, just offset.
+
+To check it on a board: `hwclock -r -u` reads the RTC, and `date` shows the
+system time. `dmesg | grep rtc` should show `registered as rtc0` and
+`setting system clock to …`.
+
+The clock face shows AEST (UTC+10, no daylight saving). The image has no
+timezone data, so this is the POSIX string `TZ=AEST-10`, set in
+[`xinitrc`](board/chronopolis/rootfs_overlay/usr/share/chronopolis/xinitrc).
+Change it there. In POSIX strings the sign is inverted, so `-10` means UTC+10.

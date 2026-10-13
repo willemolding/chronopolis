@@ -19,6 +19,11 @@ null::sysinit:/bin/ln -sf /proc/self/fd/0 /dev/stdin
 null::sysinit:/bin/ln -sf /proc/self/fd/1 /dev/stdout
 null::sysinit:/bin/ln -sf /proc/self/fd/2 /dev/stderr
 ::sysinit:/bin/hostname -F /etc/hostname
+# Set the system time from the RTC, if one is fitted. The kernel normally does
+# this already (RTC_HCTOSYS in linux.fragment); this is the fallback for when the
+# I2C controller probed too late for that. The RTC holds UTC. Nothing writes the
+# time back: the RTC is set before it is installed and keeps its own time.
+null::sysinit:/bin/sh -c '[ -e /dev/rtc0 ] && /sbin/hwclock -s -u'
 ::sysinit:/etc/init.d/rcS
 
 # The installation itself. respawn, so a crash or a GL hiccup brings the clock

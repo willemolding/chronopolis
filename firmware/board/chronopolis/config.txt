@@ -64,5 +64,12 @@ disable_splash=1
 #hdmi_cvt=1024 1024 60 1 0 0 0
 #hdmi_force_hotplug=1
 
+# Battery-backed PCF8523 real-time clock on the I2C header (GPIO 2/3), e.g. the
+# Adafruit breakout. The overlay only declares the chip; if none is fitted the
+# driver's probe fails quietly and the board boots exactly as it would without
+# these lines. See linux.fragment for how the time gets from it to the system.
+dtparam=i2c_arm=on
+dtoverlay=i2c-rtc,pcf8523
+
 # Enable UART0 for the serial console on ttyAMA0.
 dtoverlay=miniuart-bt

@@ -16,3 +16,17 @@ CONFIG_CMA_SIZE_MBYTES=192
 
 # Input, for the arrow keys that switch between clock faces.
 CONFIG_INPUT_EVDEV=y
+
+# The PCF8523 real-time clock, and the I2C controller it hangs off, built-in.
+#
+# bcmrpi_defconfig builds both as modules. Built-in, the kernel sets the system
+# time from rtc0 itself as the RTC registers (RTC_HCTOSYS), before userspace
+# starts, so the clock's first frame already shows the right time. If no RTC is
+# fitted, or its oscillator has stopped and the time is flagged invalid, the
+# kernel leaves the system time alone.
+CONFIG_I2C=y
+CONFIG_I2C_BCM2835=y
+CONFIG_RTC_CLASS=y
+CONFIG_RTC_DRV_PCF8523=y
+CONFIG_RTC_HCTOSYS=y
+CONFIG_RTC_HCTOSYS_DEVICE="rtc0"
