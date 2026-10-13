@@ -42,7 +42,8 @@ pub fn update_context(ctx: &mut ClockContext) {
     ctx.time = time;
     ctx.sec_angle = (time.second() as f32 / 60.0) * TAU;
     ctx.min_angle = (time.minute() as f32 / 60.0) * TAU;
-    ctx.hour_angle = ((time.hour() % 12) as f32 / 12.0) * TAU;
+    // Steps with each minute, as a real hour hand creeps toward the next hour.
+    ctx.hour_angle = (((time.hour() % 12) as f32 + time.minute() as f32 / 60.0) / 12.0) * TAU;
 
     // `nanosecond` exceeds 1e9 during a leap second; clamp so the hand waits.
     let secs = time.second() as f32 + (time.nanosecond() as f32 / 1e9).min(1.0);
