@@ -16,7 +16,10 @@ struct Model {
     ctx: ClockContext,
     faces: Vec<Box<dyn ClockFace>>,
     current: usize,
+    last_switch: f64,
 }
+
+const AUTO_SWITCH_SECS: f64 = 5.0;
 
 fn window_conf() -> Conf {
     Conf {
@@ -52,6 +55,7 @@ async fn main() {
         },
         faces: faces::all(),
         current: 0,
+        last_switch: get_time(),
     };
 
     loop {
@@ -94,13 +98,15 @@ fn handle_input(model: &mut Model) {
     }
 
     let previous = model.current;
-    if is_key_pressed(KeyCode::Right) {
+    let now = get_time();
+    if is_key_pressed(KeyCode::Right) || now - model.last_switch >= AUTO_SWITCH_SECS {
         model.current = (model.current + 1) % count;
     }
     if is_key_pressed(KeyCode::Left) {
         model.current = (model.current + count - 1) % count;
     }
     if model.current != previous {
+        model.last_switch = now;
         println!("Showing: {}", model.faces[model.current].name());
     }
 }
