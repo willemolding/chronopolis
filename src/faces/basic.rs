@@ -6,9 +6,6 @@ pub struct BasicFace {
     min_hand: ClockHand,
     sec_hand: ClockHand,
     name: &'static str,
-    // Resolved once rather than `format!`ed on every frame. Four heap
-    // allocations per frame is not what makes this slow, but the target has no
-    // cycles going spare either.
     bg_key: String,
     hours_key: String,
     mins_key: String,
@@ -39,6 +36,15 @@ impl ClockFace for BasicFace {
         self.hour_hand.animate_to(ctx.hour_angle, ctx.dt);
         self.min_hand.animate_to(ctx.min_angle, ctx.dt);
         self.sec_hand.animate_to(ctx.sec_angle, ctx.dt);
+    }
+
+    fn textures(&self) -> Vec<&str> {
+        vec![
+            &self.bg_key,
+            &self.hours_key,
+            &self.mins_key,
+            &self.secs_key,
+        ]
     }
 
     fn view(&self, ctx: &ClockContext) {

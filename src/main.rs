@@ -1,6 +1,7 @@
 use crate::clock_context::update_context;
 use crate::draw::centred_camera;
 use crate::prelude::*;
+use crate::textures::TextureStreamer;
 
 mod clock_context;
 mod clock_face;
@@ -17,36 +18,16 @@ struct Model {
     current: usize,
 }
 
-/// The clock is fill-rate bound on the target hardware, not CPU bound: the Pi
-/// Zero's VideoCore IV shares one ~1.2GB/s LPDDR2 bus with the CPU, and a face
-/// is four full-canvas bilinear-filtered alpha-blended quads. At a 1080-pixel
-/// canvas that is ~55MB of memory traffic per frame, which is the whole budget.
-/// Fill cost scales with the *square* of the canvas edge, so resolution is the
-/// dominant lever — see the tuning section of firmware/README.md.
 fn window_conf() -> Conf {
     Conf {
         window_title: "Chronopolis".to_owned(),
         fullscreen: true,
-        // Every pixel is expensive on a VideoCore IV (see the fill-rate note
-        // above), and a 2x backing buffer would cost four times the fill for no
-        // visible gain at gallery viewing distance. Render at 1x and let the
-        // firmware's scaler do any upscaling — it is free, we are not.
         high_dpi: false,
         sample_count: 1,
         window_width: 1024,
         window_height: 1024,
         platform: miniquad::conf::Platform {
             linux_x11_gl: miniquad::conf::LinuxX11Gl::EGLOnly,
-            // miniquad defaults to eglSwapInterval(1) (native/linux_x11.rs),
-            // which quantises the frame rate to 60/n. A frame that misses 60Hz
-            // by a hair therefore displays at 30fps with the GPU idle for half
-            // of every frame, and one that misses 30 drops to 20. Uncapping
-            // hands those partial frames back: the clock runs at whatever the
-            // hardware can actually sustain instead of the next step down.
-            //
-            // The cost is tearing, which on slowly rotating artwork shows up as
-            // a faint horizontal seam. Set this to `Some(1)` if that is more
-            // objectionable than the lower frame rate.
             swap_interval: Some(0),
             ..Default::default()
         },
@@ -56,12 +37,11 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    println!("Loading textures...");
     let textures = match textures::assets_path() {
-        Some(root) => textures::load_textures(&root).await,
+        Some(root) => TextureStreamer::new(&root),
         None => {
             eprintln!("No `assets` directory found — faces with artwork will be blank.");
-            Default::default()
+            TextureStreamer::default()
         }
     };
 
@@ -81,6 +61,16 @@ async fn main() {
         handle_input(&mut model);
 
         update_context(&mut model.ctx);
+
+        // Only the showing face and the one after it are kept in memory, so the
+        // next switch is instant.
+        let next = (model.current + 1) % model.faces.len();
+        let wanted: Vec<&str> = model.faces[model.current]
+            .textures()
+            .into_iter()
+            .chain(model.faces[next].textures())
+            .collect();
+        model.ctx.textures.update(&wanted);
 
         // Every face updates, not just the visible one, so switching to a face
         // doesn't make its hands jump from wherever they were left.

@@ -25,6 +25,10 @@ impl ClockFace for ClocktownFace {
         self.min_hand.animate_to(ctx.min_angle, ctx.dt);
     }
 
+    fn textures(&self) -> Vec<&str> {
+        vec!["clocktown/secs", "clocktown/mins", "clocktown/sun"]
+    }
+
     fn view(&self, ctx: &ClockContext) {
         let size = ctx.canvas();
 

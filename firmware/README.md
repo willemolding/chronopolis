@@ -192,15 +192,13 @@ allocated ~86MB and drew nothing on this GPU.
 `CHRONOPOLIS_ASSET_MAX_DIM` and `gpu_mem=128` in
 [`config.txt`](board/chronopolis/config.txt) trade against each other: the board
 has 512MB shared between the ARM core and the firmware, which owns the display
-in fake-KMS mode. Every image under `assets/` is decoded to RGBA and held for
-the whole run, out of the 192MB CMA pool sized in `linux.fragment` — at 1024px
-that was ~104MB of artwork, at 512px it is ~26MB.
+in fake-KMS mode. Only the showing face's artwork and the next face's are held
+decoded to RGBA, out of the 192MB CMA pool sized in `linux.fragment`; the rest
+is streamed from disk ahead of each switch (see `src/textures.rs`). At 1024px
+that is at most ~32MB of artwork plus one image being decoded.
 
 If textures fail to allocate, raise `gpu_mem`; if userspace starts hitting OOM,
-lower it. If it still will not fit, the real fix is loading each face's artwork
-on demand rather than all of it at boot, which is a change to `src/textures.rs`
-rather than to the image. Note that `textures.rs` currently loads *everything*
-under `assets/`, including art for faces not registered in `faces::all()`.
+lower it.
 
 ### Display
 

@@ -6,9 +6,8 @@
 #
 #  - VideoCore IV rejects textures above 2048x2048, and assets/clocktown/*.png
 #    are 3000x3000, so those faces would come up blank on the Pi.
-#  - textures.rs loads every image at startup and keeps it decoded, which at
-#    source resolution is ~200MB of RGBA on a board with 512MB shared with the
-#    GPU.
+#  - textures.rs keeps two faces' artwork decoded at a time, and each 3000px
+#    image is ~36MB of RGBA on a board with 512MB shared with the GPU.
 #
 # The source tree is never modified.
 #

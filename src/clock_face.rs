@@ -9,6 +9,11 @@ pub trait ClockFace: Debug {
     /// Per-frame state update. Default no-op for purely stateless faces.
     fn update(&mut self, _ctx: &ClockContext) {}
 
+    /// Texture keys `view` draws, in load-priority order
+    fn textures(&self) -> Vec<&str> {
+        Vec::new()
+    }
+
     /// Draw the face with macroquad calls. The origin is the centre of the
     /// window and `+y` points down, so positive angles turn clockwise.
     fn view(&self, ctx: &ClockContext);

@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use chrono::{DateTime, Local, Timelike};
 
 use crate::prelude::*;
+use crate::textures::TextureStreamer;
 
 /// Read-only, host-computed data handed to every face each frame.
 #[derive(Debug, Default)]
@@ -16,7 +15,7 @@ pub struct ClockContext {
     pub radius: f32,
     /// Seconds elapsed since the previous frame. Pass to `ClockHand::animate_to`.
     pub dt: f32,
-    pub textures: HashMap<String, Texture2D>,
+    pub textures: TextureStreamer,
 }
 
 impl ClockContext {
