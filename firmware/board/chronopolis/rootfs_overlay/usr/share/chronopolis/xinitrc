@@ -14,7 +14,9 @@ cd /usr/share/chronopolis
 
 # The image has no zoneinfo, so the timezone is a POSIX TZ string, which chrono
 # parses itself. The sign is inverted from the usual convention: AEST-10 is
-# UTC+10. No daylight saving. The RTC and system clock stay in UTC.
-export TZ=AEST-10
+# UTC+10. Daylight saving (AEDT, UTC+11) runs from 2am on the first Sunday in
+# October to 3am on the first Sunday in April, as in NSW, Victoria, the ACT and
+# Tasmania. The RTC and system clock stay in UTC.
+export TZ=AEST-10AEDT,M10.1.0,M4.1.0/3
 
 exec /usr/bin/chronopolis

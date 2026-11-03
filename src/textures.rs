@@ -81,6 +81,11 @@ impl TextureStreamer {
         }
     }
 
+    /// Whether there is artwork on disk for `key`, loaded or not.
+    pub fn exists(&self, key: &str) -> bool {
+        self.paths.contains_key(key)
+    }
+
     pub fn get(&self, key: &str) -> Option<&Texture2D> {
         self.resident.get(key)
     }

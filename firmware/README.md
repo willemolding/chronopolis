@@ -16,12 +16,8 @@ make -C firmware config     # build the container, generate the Buildroot config
 make -C firmware image      # the long one
 ```
 
-The result is `firmware/artifacts/sdcard.img`. Flash it with
-[Raspberry Pi Imager](https://www.raspberrypi.com/software/) ("Use custom") or:
-
-```shell
-sudo dd if=firmware/artifacts/sdcard.img of=/dev/diskN bs=4m status=progress
-```
+The result is `firmware/artifacts/sdcard.img`. See [Flash it](#flash-it) to get it
+onto a card.
 
 The first build takes roughly one to three hours — it compiles a toolchain, a kernel, Mesa and X.org from source. Downloads and ccache live in Docker volumes that `make clean` leaves alone, so later builds are much shorter; `make distclean` drops those too.
 
@@ -98,6 +94,47 @@ make -C /path/to/buildroot O=$PWD/output BR2_EXTERNAL=$PWD/firmware \
      chronopolis_defconfig
 make -C /path/to/buildroot O=$PWD/output all
 ```
+
+## Flash it
+
+The image is a whole-disk image (partition table, FAT boot partition and ext4
+root), so it gets written to the raw device, not copied onto a partition. Any
+card of 1GB or more will do. Everything already on the card is destroyed.
+
+**The easy way:** [Raspberry Pi Imager](https://www.raspberrypi.com/software/) →
+*Choose OS* → *Use custom* → pick `sdcard.img` → choose the card → *Write*. Say
+**no** to "apply OS customisation settings": they target Raspberry Pi OS and do
+nothing useful here.
+
+**From the command line on macOS:**
+
+```shell
+diskutil list                            # find the card, e.g. /dev/disk4 (external, physical)
+diskutil unmountDisk /dev/disk4          # unmount its partitions, but keep the device
+sudo dd if=firmware/artifacts/sdcard.img of=/dev/rdisk4 bs=4m status=progress
+sync
+diskutil eject /dev/disk4
+```
+
+Use `rdisk` (the raw device) rather than `disk`; it is many times faster.
+
+**From the command line on Linux:**
+
+```shell
+lsblk                                    # find the card, e.g. /dev/sdb or /dev/mmcblk0
+sudo umount /dev/sdb?*                   # unmount any partitions that auto-mounted
+sudo dd if=firmware/artifacts/sdcard.img of=/dev/sdb bs=4M conv=fsync status=progress
+```
+
+Write to the whole device (`/dev/sdb`, `/dev/mmcblk0`), never to a partition
+(`/dev/sdb1`, `/dev/mmcblk0p1`).
+
+**Check the disk number twice.** `dd` will overwrite your system disk without
+asking. Compare sizes in `diskutil list` / `lsblk` against the card, or run the
+command once with the card out and once with it in, and see which entry appears.
+
+After `make app` you only have to reflash. The card does not need to be wiped
+first.
 
 ## What's in the image
 
@@ -270,7 +307,10 @@ To check it on a board: `hwclock -r -u` reads the RTC, and `date` shows the
 system time. `dmesg | grep rtc` should show `registered as rtc0` and
 `setting system clock to …`.
 
-The clock face shows AEST (UTC+10, no daylight saving). The image has no
-timezone data, so this is the POSIX string `TZ=AEST-10`, set in
+The clock face shows Australian eastern time with daylight saving: AEST
+(UTC+10), switching to AEDT (UTC+11) from 2am on the first Sunday in October
+until 3am on the first Sunday in April. The image has no timezone data, so this
+is the POSIX string `TZ=AEST-10AEDT,M10.1.0,M4.1.0/3`, set in
 [`xinitrc`](board/chronopolis/rootfs_overlay/usr/share/chronopolis/xinitrc).
-Change it there. In POSIX strings the sign is inverted, so `-10` means UTC+10.
+Change it there. In POSIX strings the sign is inverted, so `-10` means UTC+10;
+`M10.1.0` is "month 10, week 1, Sunday", and `/3` moves the April change to 3am.

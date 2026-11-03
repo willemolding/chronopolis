@@ -1,4 +1,9 @@
 use crate::prelude::*;
+use crate::textures::TextureStreamer;
+
+/// Hands drawn in place of any a face's artist didn't supply, under
+/// `assets/fallback/`.
+const FALLBACK_HANDS: &str = "fallback";
 
 /// One of the four textures a [`BasicFace`] draws.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,6 +98,18 @@ impl ClockFace for BasicFace {
         self.hour_hand.animate_to(ctx.hour_angle, ctx.dt);
         self.min_hand.animate_to(ctx.min_angle, ctx.dt);
         self.sec_hand.animate_to(ctx.sec_angle, ctx.dt);
+    }
+
+    fn resolve_textures(&mut self, textures: &TextureStreamer) {
+        for (key, hand) in [
+            (&mut self.hours_key, "hours"),
+            (&mut self.mins_key, "mins"),
+            (&mut self.secs_key, "secs"),
+        ] {
+            if !textures.exists(key) {
+                *key = format!("{FALLBACK_HANDS}/{hand}");
+            }
+        }
     }
 
     fn textures(&self) -> Vec<&str> {
